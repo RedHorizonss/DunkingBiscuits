@@ -6,7 +6,7 @@ import plotly.graph_objs as go
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression 
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import PolynomialFeatures
 
@@ -15,7 +15,7 @@ sns.set_theme(style="whitegrid", font_scale=1.25 ,rc={"xtick.bottom" : True, "yt
                                     "axes.spines.right" : False, "axes.spines.top" : False,
                                     'axes.linewidth': 2, 'axes.edgecolor':'black'})
 
-palette = ["#21918c", "#5ec962", "#3b528b", "#440154", "#fde725"]
+palette = ["#21918c", "#addc30", "#472d7b", "#5ec962", "#3b528b"]
 sns.set_palette(palette)
 
 class biscuit_models():
@@ -44,15 +44,17 @@ class biscuit_models():
         poly = PolynomialFeatures(degree=degree)
         self.X = poly.fit_transform(self.X)
         
-    def train_test_split_data(self, random_state=42, test_size=0.2):
+    def train_test_split_data(self, random_state=42, test_size=0.2, stratify=None):
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, 
-                                                                                test_size=test_size, random_state=random_state)
+                                                                                test_size=test_size, random_state=random_state, stratify=stratify)
     
     def train_model(self, model_type='linear_regression', **kwargs):
         if model_type == 'linear_regression':
             self.model = LinearRegression(**kwargs)
-        elif model_type == 'random_forest':
+        elif model_type == 'random_forest_regression':
             self.model = RandomForestRegressor(**kwargs)
+        elif model_type == 'random_forest_classifier':
+            self.model = RandomForestClassifier(**kwargs)
         else:
             raise ValueError('Invalid model_type. Must be either linear_regression or random_forest')
         self.model.fit(self.X_train, self.y_train)
@@ -96,3 +98,40 @@ class biscuit_models():
         plt.xticks(range(self.X_train.shape[1]), [self.feature_columns[i] for i in indices], rotation=90)
         plt.title('Feature Importances')
         plt.show()
+
+
+def scatter_plot_3D(x, y, z, color_by ,x_label, y_label, z_label, eye_x, eye_y, eye_z):
+    fig = go.Figure(data=[go.Scatter3d(
+        x = x,
+        y = y,
+        z = z,
+        mode='markers',
+        marker=dict(
+            size=5,
+            color=color_by,
+            colorscale='Viridis',   
+            opacity=0.8,
+        )
+    )])
+
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title=x_label, title_font=dict(size=20)),
+            yaxis=dict(title=y_label, title_font=dict(size=20)),
+            zaxis=dict(title=z_label, title_font=dict(size=20)),
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        height=500,
+        width=500,
+        template='plotly_white',
+        font=dict(family="Helvetica",
+                size=14,
+                color="black",),
+        
+        scene_camera = dict(
+        up=dict(x=0, y=0, z=1),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=eye_x, y=eye_y, z=eye_z))
+        )
+
+    fig.show()
