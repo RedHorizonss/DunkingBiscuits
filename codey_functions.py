@@ -10,10 +10,13 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import PolynomialFeatures
 
+from scipy.signal import find_peaks
+
 sns.set_theme(style="whitegrid", font_scale=1.25 ,rc={"xtick.bottom" : True, "ytick.left" : True, 
                                     "axes.spines.bottom" : True, "axes.spines.left" : True,
                                     "axes.spines.right" : False, "axes.spines.top" : False,
-                                    'axes.linewidth': 2, 'axes.edgecolor':'black'})
+                                    'axes.linewidth': 2, 'axes.edgecolor':'black',
+                                    'axes.formatter.limits': (-2, 2), 'axes.formatter.use_mathtext' : True})
 
 palette = ["#21918c", "#addc30", "#472d7b", "#5ec962", "#3b528b", "#28ae80"]
 sns.set_palette(palette)
@@ -141,3 +144,21 @@ def scatter_plot_3D(x, y, z, color_by ,x_label, y_label, z_label, eye_x, eye_y, 
         )
 
     fig.show()
+    
+def get_peaks(datapoints, bw, tolerance = 1e6):
+    density = sns.kdeplot(datapoints, bw_adjust=bw).get_lines()[-1].get_data()
+    peaks, _ = find_peaks(density[1], height=tolerance)
+    plt.close()
+    return density[0][peaks], density[1][peaks]
+
+def follow_peak_evolution(datapoints, bw_values, tolerance):
+    store_peaks = []
+    for i in bw_values:
+        x_peaks, y_peaks = get_peaks(datapoints, i, tolerance)
+        
+        for value in x_peaks:
+            store_peaks.append([value, i])
+    
+    plt.close()
+    store_peaks = np.array(store_peaks)
+    return store_peaks
