@@ -9,6 +9,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.neighbors import NearestNeighbors
 
 from scipy.signal import find_peaks
 
@@ -152,13 +153,72 @@ def get_peaks(datapoints, bw, tolerance = 1e6):
     return density[0][peaks], density[1][peaks]
 
 def follow_peak_evolution(datapoints, bw_values, tolerance):
-    store_peaks = []
+    mode_evolution = []
     for i in bw_values:
         x_peaks, y_peaks = get_peaks(datapoints, i, tolerance)
         
         for value in x_peaks:
-            store_peaks.append([value, i])
+            mode_evolution.append([value, i])
     
     plt.close()
-    store_peaks = np.array(store_peaks)
-    return store_peaks
+    mode_evolution = np.array(mode_evolution)
+    return mode_evolution
+
+def trace_modes(datapoints, bw_values, tolerance, precentage_range, number_of_modes):
+    mode_value = 1
+    mode_evolution = []
+    trace_modes = {}
+
+    upper_percent = 1 + precentage_range
+    lower_percent = 1 - precentage_range
+
+    for i in bw_values:
+        density = sns.kdeplot(datapoints, bw_adjust=i).get_lines()[-1].get_data()
+        
+        peaks, _ = find_peaks(density[1], height=tolerance)  # density[1] contains the y-values of the KDE
+        
+        # Stores all possible modes found in the KDE
+        for value in peaks:
+            mode_evolution.append([density[0][value], i])
+            
+        # If no modes have been found yet, add all peaks to the dictionary (these are the first modes found in the KDE)
+        if trace_modes == {}:
+            for value in peaks:
+                trace_modes[f'Mode {mode_value}'] = [[density[0][value],i]]
+                # Mode value keeps track of the number of modes found
+                mode_value += 1
+        # If modes have been found, add new peaks to the dictionary if they are close to the previous peaks
+        else:
+            # peaks just added lets us know which peaks have been added to the dictionary so if the number of modes are not reached, we can make a new mode without repeating peaks
+            peaks_just_added = []
+            # First we add the peaks that are close to the previous peaks
+            for key in trace_modes.keys():
+                for item in density[0][peaks]:
+                    # The peaks are added if they are within 0.5% of the previous peak
+                    if (item < trace_modes[key][-1][0]*upper_percent) and (item > trace_modes[key][-1][0]*lower_percent):
+                        trace_modes[key].append([item,i])
+                        peaks_just_added.append(item)
+                            
+            # If the number of modes have not been reached, add new modes with the remaining peaks               
+            if mode_value <= number_of_modes:
+                if len(np.setdiff1d(density[0][peaks], peaks_just_added)) > 0:
+                    for item in np.setdiff1d(density[0][peaks], peaks_just_added):
+                        trace_modes[f'Mode {mode_value}'] = [[item,i]]
+                        mode_value += 1
+            
+    plt.close()
+
+    mode_evolution = np.array(mode_evolution)
+    
+    for key in trace_modes:
+        trace_modes[key] = np.array(trace_modes[key])
+    
+    return trace_modes, mode_evolution
+
+def trace_centers(trace_modes):
+    centroids = []
+    for key in trace_modes.keys():
+        center = np.mean(trace_modes[key], axis=0)
+        centroids.append(center)
+    
+    return np.array(centroids)
